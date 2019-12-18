@@ -150,6 +150,10 @@ def varChoice(var):
         var1 = 'cl_width/cl_length'
         leg = 'Slimness [w/l]'
         histlimit = 1.2
+    elif var == 'intsize':
+        var1 = '(cl_integral/cl_size)'
+        leg = 'Integral/Size [ph/px]'
+        histlimit = 10
     else:
         exit()
     
@@ -159,7 +163,7 @@ def varChoice(var):
 def fillSpectra(cluster='cl'):
 
     ret = {}
-    tf_cosmics = ROOT.TFile('../reco_run02278_3D.root')
+    tf_cosmics = ROOT.TFile('../reco_run02165_3D.root')
     tf_fe55 = ROOT.TFile('../reco_run02279_3D.root')
     tfiles = {'fe':tf_fe55,'cosm':tf_cosmics}
     
@@ -194,8 +198,8 @@ def fillSpectra(cluster='cl'):
                     continue
                 #if not slimnessCut(getattr(event,"{clutype}_length".format(clutype=cluster))[isc],getattr(event,"{clutype}_width".format(clutype=cluster))[isc]):
                  #   continue
-                if not integralCut(getattr(event,"{clutype}_integral".format(clutype=cluster))[isc]):
-                    continue
+                #if not integralCut(getattr(event,"{clutype}_integral".format(clutype=cluster))[isc]):
+                #    continue
                 for var in ['integral','length','width','nhits']:
                     ret[(runtype,var)].Fill(getattr(event,("{clutype}_{name}".format(clutype=cluster,name=var)))[isc])
                 ret[(runtype,'slimness')].Fill(getattr(event,"{clutype}_width".format(clutype=cluster))[isc] / getattr(event,"{clutype}_length".format(clutype=cluster))[isc])
@@ -252,7 +256,7 @@ def drawOne(histo_sr,histo_cr,plotdir='./'):
     histo_sr.Draw("pe same")
 
     histos = [histo_sr,histo_cr]
-    labels = ['^{55}Fe source 70/30 - Pos6','^{55}Fe source 70/30 - Pos4']
+    labels = ['^{55}Fe source 70/30 - Pos 5','^{55}Fe source 60/40 - Pos 5']
     styles = ['p','f']
     
     legend = doLegend(histos,labels,styles,corner="TR")
@@ -341,14 +345,23 @@ def plotEnergyVsDistance(plotdir):
     print y_mean
     print y_res
 
-def plotCameraEnergyVsPosition(plotdir,var='integral'):
+def plotCameraEnergyVsPosition(plotdir,var='integral',gas = 60):
     
     x = []
     y_mean = []; y_res = []
     
-    for i in range(0,6):
+    #gas = 70
+    
+    if gas == 70:
+        gg   = '70-30'
+        n    = 7
+    else:
+        gg   = '60-40'
+        n    = 6
+    
+    for i in range(0,n):
         
-        mean, rms, i, leg = plotHistFit(plotdir,var,i)
+        mean, rms, i, leg = plotHistFit(plotdir,var,i,gas)
         x.append(i)
         y_mean.append(mean)
         y_res.append(rms/mean)
@@ -388,55 +401,51 @@ def plotCameraEnergyVsPosition(plotdir,var='integral'):
     gr_mean.GetXaxis().SetTitle('Source Position [cm]')
     gr_mean.GetYaxis().SetTitle('{leg}'.format(leg=leg))
 
-    for ext in ['png','pdf']:
-        c.SaveAs("{plotdir}/CameraMean_{var}_60-40.{ext}".format(plotdir=plotdir,var=var,ext=ext))
+    for ext in ['pdf']:
+        c.SaveAs("{plotdir}/CameraMean_{var}_{gg}.{ext}".format(plotdir=plotdir,var=var,ext=ext,gg=gg))
 
     gr_res.Draw('AP')
     gr_res.GetXaxis().SetTitle('Source Position [cm]')
     gr_res.GetYaxis().SetTitle('Resolution [rms]')
 
-    for ext in ['png','pdf']:
-        c.SaveAs("{plotdir}/CameraRMS_{var}_60-40.{ext}".format(plotdir=plotdir,var=var,ext=ext))
+    for ext in ['pdf']:
+        c.SaveAs("{plotdir}/CameraRMS_{var}_{gg}.{ext}".format(plotdir=plotdir,var=var,ext=ext,gg=gg))
     
+    return c, gr_mean, gr_res
+
+def calcCameraEnergyVsPosition(plotdir,var='integral',gas = 60):
     
-def plotPMTEnergyVsPosition(plotdir):
-    tf_fe55 = ROOT.TFile('runs/reco_run01754_to_run01759.root')
-    tree = tf_fe55.Get('Events')
-
-    runs = range(1754,1760)
-    integral = ROOT.TH1F('integral','',100,2000,20000)
-
-    np = len(runs)
     x = []
-    y_mean = []; y_res = []
+    y_mean = []; y_res = []; y_spot = []
     
-    for i,r in enumerate(runs):
-        cut = 'run=={r} && pmt_tot<100'.format(r=r)
-        tree.Draw('pmt_integral>>integral',cut)
-        mean = integral.GetMean()
-        rms  = integral.GetRMS()
+    if gas == 70:
+        n    = 7
+    else:
+        n    = 6
+      
+    for i in range(0,n):
+        
+        mean, rms, i, leg, spotn = plotHistFit(plotdir,var,i,gas)
         x.append(i)
         y_mean.append(mean)
         y_res.append(rms/mean)
-        integral.Reset()
-
-
-    print y_res
+        y_spot.append(spotn)
     
-    gr_mean = ROOT.TGraph(np,array('f',x),array('f',y_mean))
-    gr_res = ROOT.TGraph(np,array('f',x),array('f',y_res))
-    gr_mean.GetXaxis().SetRangeUser(-1,np)
-    gr_res.GetXaxis().SetRangeUser(-1,np)
-    gr_mean.GetYaxis().SetRangeUser(5000,9000)
-    gr_res. GetYaxis().SetRangeUser(0,1.0)
-    gr_mean.SetMarkerStyle(ROOT.kOpenCircle)
-    gr_res.SetMarkerStyle(ROOT.kOpenCircle)
-    gr_mean.SetMarkerSize(2)
-    gr_res.SetMarkerSize(2)
-    
-    gr_mean.SetTitle('')
-    gr_res.SetTitle('')
+    return x, y_mean, y_res, leg, y_spot
 
+
+def plotCameraEnergyVsPositionGas(plotdir,var='integral'):
+    
+    x1, y_mean1, y_res1, leg, y_spot1 = calcCameraEnergyVsPosition(plotdir, var, gas = 60)
+    x2, y_mean2, y_res2, leg, y_spot2 = calcCameraEnergyVsPosition(plotdir, var, gas = 70)
+    
+    
+    y_mean =y_mean1 + y_mean2
+    y_res = y_res1 + y_res2
+    y_spot = y_spot1 + y_spot2
+    
+    ## Creating the CANVAS
+    
     c = ROOT.TCanvas('c','',1200,1200)
     lMargin = 0.17
     rMargin = 0.05
@@ -449,25 +458,274 @@ def plotPMTEnergyVsPosition(plotdir):
     c.SetFrameBorderMode(0);
     c.SetBorderMode(0);
     c.SetBorderSize(0);
+    c.SetGrid();   
     
+    
+    ## Creating MultiGraph
+    mg1 = ROOT.TMultiGraph("mg","");
+    mg2 = ROOT.TMultiGraph("mg2","");
+    
+    if var=='integral':
+        mg3 = ROOT.TMultiGraph("mg3","");
+        
+        np3 = len(x1)
+        ## Creating TGraph SPOT
 
-    gr_mean.Draw('AP')
-    gr_mean.GetXaxis().SetTitle('source position index')
-    gr_mean.GetYaxis().SetTitle('PMT integral (mV)')
+        gr_spot1 = ROOT.TGraph(np3,array('f',x1),array('f',y_spot1))
+        gr_spot1.SetName("He/CF_{4} - 60/40 ");
+        gr_spot1.SetDrawOption("AP");
+        gr_spot1.GetXaxis().SetRangeUser(0,21)
+        gr_spot1.GetYaxis().SetRangeUser(0,max(y_spot)*1.2)
+        gr_spot1.SetMarkerStyle(ROOT.kOpenCircle)
+        gr_spot1.SetMarkerSize(2)
+        gr_spot1.SetTitle('')
+        gr_spot1.GetXaxis().SetTitle('Source Position [cm]')
+        gr_spot1.GetYaxis().SetTitle('Spot Number [Counts]')
+        
+        np4 = len(x2)
+        ## Creating TGraph SPOT
 
-    for ext in ['png','pdf']:
-        c.SaveAs("{plotdir}/mean.{ext}".format(plotdir=plotdir,ext=ext))
+        gr_spot2 = ROOT.TGraph(np4,array('f',x2),array('f',y_spot2))
+        gr_spot2.SetName("He/CF_{4} - 70/30 ");
+        gr_spot2.SetDrawOption("AP");
+        gr_spot2.GetXaxis().SetRangeUser(0,21)
+        gr_spot2.GetYaxis().SetRangeUser(0,max(y_spot)*1.2)
+        gr_spot2.SetMarkerStyle(ROOT.kOpenSquare)
+        gr_spot2.SetMarkerSize(2)
+        gr_spot2.SetTitle('')
+        gr_spot2.GetXaxis().SetTitle('Source Position [cm]')
+        gr_spot2.GetYaxis().SetTitle('Spot Number [Counts]')
+        
+        mg3.Add( gr_spot1 );
+        gr_spot2.Draw("ALP");
+        mg3.Draw("LP");
+        c.BuildLegend(0.3,0.3,0.1,0.1);
+    
+        for ext in ['pdf']:
+            c.SaveAs("{plotdir}/CameraGasCompare_SpotNumber.{ext}".format(plotdir=plotdir,var=var,ext=ext))
+    
+    # 60-40
+    
+    np1 = len(x1)
+    ## Creating TGraph MEAN
+    
+    gr_mean1 = ROOT.TGraph(np1,array('f',x1),array('f',y_mean1))
+    gr_mean1.SetName("He/CF_{4} - 60/40 ");
+    gr_mean1.SetDrawOption("AP");
+    gr_mean1.GetXaxis().SetRangeUser(0,21)
+    gr_mean1.GetYaxis().SetRangeUser(0,max(y_mean)*1.2)
+    gr_mean1.SetMarkerStyle(ROOT.kOpenCircle)
+    gr_mean1.SetMarkerSize(2)
+    gr_mean1.SetTitle('')
+    gr_mean1.GetXaxis().SetTitle('Source Position [cm]')
+    gr_mean1.GetYaxis().SetTitle('{leg}'.format(leg=leg))
+    
+    ## Creating TGraph RES
+    
+    gr_res1 = ROOT.TGraph(np1,array('f',x1),array('f',y_res1))
+    gr_res1.SetName("He/CF_{4} - 60/40 ");
+    gr_res1.SetDrawOption("AP");
+    gr_res1.GetXaxis().SetRangeUser(0,21)
+    gr_res1.GetYaxis().SetRangeUser(0,max(y_res)*1.2)
+    gr_res1.SetMarkerStyle(ROOT.kOpenCircle)
+    gr_res1.SetMarkerSize(2)
+    gr_res1.SetTitle('')
+    gr_res1.GetXaxis().SetTitle('Source Position [cm]')
+    gr_res1.GetYaxis().SetTitle('Resolution [rms]')
 
-    gr_res.Draw('AP')
-    gr_res.GetXaxis().SetTitle('source position index')
-    gr_res.GetYaxis().SetTitle('resolution (rms)')
 
-    for ext in ['png','pdf']:
-        c.SaveAs("{plotdir}/rms.{ext}".format(plotdir=plotdir,ext=ext))
+    # 70-30
+    np2 = len(x2)
+    gr_mean2 = ROOT.TGraph(np2,array('f',x2),array('f',y_mean2))
+    gr_mean2.SetName("He/CF_{4} - 70/30 ");
+    gr_mean2.SetDrawOption("AP");
+    gr_mean2.GetXaxis().SetRangeUser(0,21)
+    gr_mean2.GetYaxis().SetRangeUser(0,max(y_mean)*1.2)
+    gr_mean2.SetMarkerStyle(ROOT.kOpenSquare)
+    gr_mean2.SetMarkerSize(2)
+    gr_mean2.SetTitle('')
+    gr_mean2.GetXaxis().SetTitle('Source Position [cm]')
+    gr_mean2.GetYaxis().SetTitle('{leg}'.format(leg=leg))
+    
+    gr_res2 = ROOT.TGraph(np2,array('f',x2),array('f',y_res2))
+    gr_res2.SetName("He/CF_{4} - 70/30 ");
+    gr_res2.SetDrawOption("AP");
+    gr_res2.GetXaxis().SetRangeUser(0,21)
+    gr_res2.GetYaxis().SetRangeUser(0,max(y_res)*1.2)
+    gr_res2.SetMarkerStyle(ROOT.kOpenSquare)
+    gr_res2.SetMarkerSize(2)
+    gr_res2.SetTitle('')
+    gr_res2.GetXaxis().SetTitle('Source Position [cm]')
+    gr_res2.GetYaxis().SetTitle('Resolution [rms]')
 
-    print x
-    print y_mean
-    print y_res
+    
+    #### RATIO
+    if var=='integral':
+        import numpy as np
+        yratio = ((np.array(y_mean1)/np.array(y_mean2[0:6]))*1100).tolist()
+        
+        gr_ratio1 = ROOT.TGraph(np1,array('f',x1),array('f',yratio))
+        gr_ratio1.SetName("Ratio 60/40 - 70/30 ");
+        gr_ratio1.SetDrawOption("AP");
+        gr_ratio1.GetXaxis().SetRangeUser(0,21)
+        gr_ratio1.GetYaxis().SetRangeUser(0,max(y_mean)*1.2)
+        gr_ratio1.SetMarkerStyle(ROOT.kOpenTriangleUp)
+        gr_ratio1.SetMarkerSize(2)
+        gr_ratio1.SetTitle('')
+        gr_ratio1.GetXaxis().SetTitle('Source Position [cm]')
+        gr_ratio1.GetYaxis().SetTitle('{leg}'.format(leg=leg))  
+        mg1.Add( gr_ratio1 );
+        
+    mg1.Add( gr_mean1 );
+    gr_mean2.Draw("ALP");
+    mg1.Draw("LP");
+    c.BuildLegend();
+    
+    for ext in ['pdf']:
+        c.SaveAs("{plotdir}/CameraGasCompareMean_{var}.{ext}".format(plotdir=plotdir,var=var,ext=ext))
+        
+    mg2.Add( gr_res1 );
+    gr_res2.Draw("ALP");
+    mg2.Draw("LP");
+    c.BuildLegend();
+    
+    for ext in ['pdf']:
+        c.SaveAs("{plotdir}/CameraGasCompareRMS_{var}.{ext}".format(plotdir=plotdir,var=var,ext=ext))    
+    
+def plotPMTEnergyVsPosition(plotdir,gas=60):
+    import numpy as np
+      
+    if gas == 70:
+        tf_fe55 = ROOT.TFile('../reco_run02274_to_run02280_pmt.root')
+        pos  = [0, 1, 2, 3, 4, 5, 6]
+        run  = [2274, 2275, 2276, 2277, 2278, 2279, 2280]
+        dist = (23-np.array([19.5, 16.5, 14.3, 12.5, 10.5, 8.2, 6.2])).tolist()
+        gg   = '70-30'
+    else:
+        tf_fe55 = ROOT.TFile('../reco_run02160_to_run02165_pmt.root')
+        pos  = [0, 1, 2, 3, 4, 5]
+        run  = [2160, 2161, 2162, 2163, 2164, 2165]
+        dist = (23-np.array([19.5, 16.5, 14.3, 12.5, 10.5, 8.2])).tolist()
+        gg   = '60-40'
+
+    tree = tf_fe55.Get('Events')
+    integral = ROOT.TH1F('integral','',100,2000,20000)
+        
+    np = len(run)+1
+    x = []
+    y_mean = []; y_res = []
+    
+    for i,r in enumerate(run):
+        cut = 'run=={r} && pmt_tot<100'.format(r=r)
+        tree.Draw('pmt_integral>>integral',cut)
+        mean = integral.GetMean()
+        rms  = integral.GetRMS()
+        x.append(i)
+        y_mean.append(mean)
+        y_res.append(rms/mean)
+        integral.Reset()
+
+    return y_mean,y_res,dist
+
+def plotPMT2gas(plotdir):    
+
+    y_mean1, y_res1, x1 = plotPMTEnergyVsPosition(plotdir,gas=60)
+    y_mean2, y_res2, x2 = plotPMTEnergyVsPosition(plotdir,gas=70)
+    
+    y_mean =y_mean1 + y_mean2
+    y_res = y_res1 + y_res2
+    
+    c = ROOT.TCanvas('c','',1200,1200)
+    lMargin = 0.17
+    rMargin = 0.05
+    bMargin = 0.15
+    tMargin = 0.07
+    c.SetLeftMargin(lMargin)
+    c.SetRightMargin(rMargin)
+    c.SetTopMargin(tMargin)
+    c.SetBottomMargin(bMargin)
+    c.SetFrameBorderMode(0);
+    c.SetBorderMode(0);
+    c.SetBorderSize(0);
+    c.SetGrid();
+    
+    ## Creating MultiGraph
+    mg1 = ROOT.TMultiGraph("mg","");
+    mg2 = ROOT.TMultiGraph("mg2","");
+    
+    
+    np1 = len(x1)
+    ## Creating TGraph MEAN
+    
+    gr_mean1 = ROOT.TGraph(np1,array('f',x1),array('f',y_mean1))
+    gr_mean1.SetName("He/CF_{4} - 60/40 ");
+    gr_mean1.SetDrawOption("AP");
+    gr_mean1.GetXaxis().SetRangeUser(0,21)
+    gr_mean1.GetYaxis().SetRangeUser(0,max(y_mean)*1.2)
+    gr_mean1.SetMarkerStyle(ROOT.kOpenCircle)
+    gr_mean1.SetMarkerSize(2)
+    gr_mean1.SetTitle('')
+    gr_mean1.GetXaxis().SetTitle('Source Position [cm]')
+    gr_mean1.GetYaxis().SetTitle('PMT integral [mV]')
+    
+    ## Creating TGraph RES
+    
+    gr_res1 = ROOT.TGraph(np1,array('f',x1),array('f',y_res1))
+    gr_res1.SetName("He/CF_{4} - 60/40 ");
+    gr_res1.SetDrawOption("AP");
+    gr_res1.GetXaxis().SetRangeUser(0,21)
+    gr_res1.GetYaxis().SetRangeUser(0,max(y_res)*1.2)
+    gr_res1.SetMarkerStyle(ROOT.kOpenCircle)
+    gr_res1.SetMarkerSize(2)
+    gr_res1.SetTitle('')
+    gr_res1.GetXaxis().SetTitle('Source Position [cm]')
+    gr_res1.GetYaxis().SetTitle('Resolution [rms]')
+    
+    
+    # 70-30
+    np2 = len(x2)
+    
+    gr_mean2 = ROOT.TGraph(np2,array('f',x2),array('f',y_mean2))
+    gr_mean2.SetName("He/CF_{4} - 70/30 ");
+    gr_mean2.SetDrawOption("AP");
+    gr_mean2.GetXaxis().SetRangeUser(0,21)
+    gr_mean2.GetYaxis().SetRangeUser(0,max(y_mean)*1.2)
+    gr_mean2.SetMarkerStyle(ROOT.kOpenSquare)
+    gr_mean2.SetMarkerSize(2)
+    gr_mean2.SetTitle('')
+    gr_mean2.GetXaxis().SetTitle('Source Position [cm]')
+    gr_mean2.GetYaxis().SetTitle('PMT integral [mV]')
+    
+    gr_res2 = ROOT.TGraph(np2,array('f',x2),array('f',y_res2))
+    gr_res2.SetName("He/CF_{4} - 70/30 ");
+    gr_res2.SetDrawOption("AP");
+    gr_res2.GetXaxis().SetRangeUser(0,21)
+    gr_res2.GetYaxis().SetRangeUser(0,max(y_res)*1.2)
+    gr_res2.SetMarkerStyle(ROOT.kOpenSquare)
+    gr_res2.SetMarkerSize(2)
+    gr_res2.SetTitle('')
+    gr_res2.GetXaxis().SetTitle('Source Position [cm]')
+    gr_res2.GetYaxis().SetTitle('Resolution [rms]')
+
+    mg1.Add( gr_mean1 );
+    gr_mean2.Draw("ALP");
+    mg1.Draw("LP");
+    c.BuildLegend();
+
+    for ext in ['pdf']:
+        c.SaveAs("{plotdir}/PMTZScanGasComp_mean.{ext}".format(plotdir=plotdir,ext=ext))
+
+    mg2.Add( gr_res1 );
+    gr_res2.Draw("ALP");
+    mg2.Draw("LP");
+    c.BuildLegend();
+
+    for ext in ['pdf']:
+        c.SaveAs("{plotdir}/PMTZScanGasComp_rms.{ext}".format(plotdir=plotdir,ext=ext))
+
+    #print x
+    #print y_mean
+    #print y_res
 
 
 def plotCameraPMTCorr(outdir):
@@ -507,46 +765,27 @@ def plotCameraPMTCorr(outdir):
     for ext in ['png','pdf','root']:
         c.SaveAs('{plotdir}/{name}_profX.{ext}'.format(plotdir=outdir,name=tot_vs_nhits.GetName(),ext=ext))
         
-def plotHistFit(plotdir,var='integral',i=0):
+def plotHistFit(plotdir,var='integral',i=0, gas=60):
     import numpy as np
     
     ROOT.gStyle.SetOptFit(1011)
-    gas=60
+    ROOT.gStyle.SetErrorX(0)
+    
+    #gas=60
     if gas == 70:
         pos  = [0, 1, 2, 3, 4, 5, 6]
         run  = [2274, 2275, 2276, 2277, 2278, 2279, 2280]
         dist = (23-np.array([19.5, 16.5, 14.3, 12.5, 10.5, 8.2, 6.2])).tolist()
+        gg   = '70-30'
     else:
         pos  = [0, 1, 2, 3, 4, 5]
         run  = [2160, 2161, 2162, 2163, 2164, 2165]
         dist = (23-np.array([19.5, 16.5, 14.3, 12.5, 10.5, 8.2])).tolist()
+        gg   = '60-40'
         
     
-    if var == 'integral':
-        var1 = 'cl_integral'
-        leg = 'Integral [ph]'
-        histlimit = 6000
-    elif var == 'length':
-        var1 = 'cl_length*125E-3'
-        leg = 'Length [mm]'
-        if gas == 70:
-            histlimit = 12
-        else:
-            histlimit = 7
-    elif var == 'width':
-        var1 = 'cl_width*125E-3'
-        leg = 'Width [mm]'
-        histlimit = 10
-    elif var == 'size':
-        var1 = 'cl_size'
-        leg = 'Size [px]'
-        histlimit = 1600
-    elif var == 'slimness':
-        var1 = 'cl_width/cl_length'
-        leg = 'Slimness [w/l]'
-        histlimit = 1.2
-    else:
-        exit()
+    var1, leg, histlimit = varChoice(var)
+    left, right, peak = posParametersInt(i,gas)
     
     if gas == 70:
         tf_fe55 = ROOT.TFile('../reco_run02274_to_run02280.root')    
@@ -557,10 +796,25 @@ def plotHistFit(plotdir,var='integral',i=0):
     
     c = ROOT.TCanvas('','',800,600)
 
-    hist = ROOT.TH1F('hist','%.2f cm between Source and GEM' % (dist[i]),100,0,histlimit)
+    if gas == 70:
+        if i == 6:
+            hist = ROOT.TH1F('hist','%.2f cm between Source and GEM' % (dist[i]),35,0,histlimit)
+        else:
+            hist = ROOT.TH1F('hist','%.2f cm between Source and GEM' % (dist[i]),100,0,histlimit)
+        
+    else:
+        if var == 'intsize':
+            hist = ROOT.TH1F('hist','%.2f cm between Source and GEM' % (dist[i]),100,0,histlimit)
+        else:
+            hist = ROOT.TH1F('hist','%.2f cm between Source and GEM' % (dist[i]),30,0,histlimit)
+        
     hist.Sumw2()
-
-    cut_base = 'cl_iteration==2 && run=={r}'.format(r=run[i])
+    
+    if var == 'integral':
+        cut_base = 'cl_iteration==2 && run=={r}'.format(r=run[i])
+    else:
+        le,ri = posParametersCutInt(i,gas)
+        cut_base = 'cl_iteration==2 && run=={r} && cl_integral>={left} && cl_integral<={right}'.format(r=run[i],left=le, right=ri)
     cut = "{base} && TMath::Hypot(cl_xmean-1024,(cl_ymean-1024)*1.2)<{r_max}".format(base=cut_base,r_max=400)
 
     tree.Draw("{var}>>hist".format(var=var1),cut)
@@ -578,33 +832,63 @@ def plotHistFit(plotdir,var='integral',i=0):
         f.SetParLimits(1,mean-3*rms,mean+3*rms);
         f.SetParameter(2,rms);
         #f.SetParLimits(2,300,600);
-        fitRe = hist.Fit(f,'S')
+        if var == 'integral':
+            fitRe = hist.Fit(f,'R','',left,right)
+        elif var == 'length':
+            left1, right1 = posParametersLen(i,gas)
+            fitRe       = hist.Fit(f,'R','',left1,right1)
+        elif var == 'slimness':
+            fitRe       = hist.Fit(f,'R','',0.5,1.2)
+        elif var == 'intsize':
+            fitRe       = hist.Fit(f,'R','',2,7)    
+        else:
+            fitRe = hist.Fit(f,'S')
         rMean  = f.GetParameter(1)
         rSigma = f.GetParameter(2)
+        spotNumber = f.Integral(0,histlimit)/hist.GetBinWidth(1)
+        
     else:
-        print("Using Polya fit needs to be fixed")
+        print("Using Polya fit")
              
-        #[0] = b
-        #[1] = nt
-        #[2] = k
-        #k = 1/[0] -1
-        #[x] = n
-
-        pol_A = "(1/[0]*[1])"
-        pol_B = "(1/TMath::Factorial(1/([0] -1)))"
-        pol_C = "TMath::Power(x/([0]*[1]), (1/([0] -1)))"
-        pol_D = "exp((-1*x)/([0]*[1]))"
-        pol = "(%s)*(%s)*(%s)*(%s)" % (pol_A , pol_B , pol_C, pol_D)
+        #TF1 *myPolyaE = new TF1("myPolyaE","[0]*ROOT::Math::negative_binomial_pdf(x,[1],[2])+[3]*exp(-x/[4])",0,10000);
+        #myPolyaE->SetParameters(10000,0.4,1000,1e3,1e2);
         
-        polyaFit = ROOT.TF1("polyafit", pol, 0, 6000)
-        #polyaFit.SetParameter (0, 500)
-        polyaFit.SetParameter (1, 2600)
+        myPolyaE = ROOT.TF1("myPolyaE","[0]*ROOT::Math::negative_binomial_pdf(x,[1],[2])+[3]*exp(-x/[4])",0,10000);
+        if var == 'integral':
+            if gas == 70:
+                myPolyaE.SetParameters(10000,0.4,1000,1e3,1e2);
+            else:
+                myPolyaE.SetParameters(10000,0.4,peak,1e3,1e2);
+        elif var == 'intsize':
+            myPolyaE.SetParameters(30000,0.1,3,1e5,1e3);
+        else:
+            print('here')
+            myPolyaE.SetParameters(10000,0.4,1,1e3,1e2);
+       
         
-        hist.Fit(polyaFit ,"S")
-        rMean  = polyaFit.GetParameter(0)
-        rSigma = polyaFit.GetParameter(1)
+        if var == 'intsize':
+            hist.Fit(myPolyaE ,"R", "", 0.5,10)
+        else:
+            hist.Fit(myPolyaE ,"R", "", left,right)
+            
         
-    hist.Draw('hist sames')  
+        myPolya = ROOT.TF1("myPolya","[0]*ROOT::Math::negative_binomial_pdf(x,[1],[2])",0,10000);
+        myPolya.SetParameters(myPolyaE.GetParameter(0),myPolyaE.GetParameter(1),myPolyaE.GetParameter(2));
+        
+        myPolya.Draw('hist same')
+        myPolya.SetLineColor(ROOT.kGray+1)
+        
+        rMean = ((1-myPolya.GetParameter(1))*myPolya.GetParameter(2))/myPolya.GetParameter(1)
+        rSigma = np.sqrt(((1-myPolya.GetParameter(1))*myPolya.GetParameter(2))/(myPolya.GetParameter(1)*myPolya.GetParameter(1)))
+        rRMS = rSigma/rMean
+        spotNumber = myPolya.Integral(0,histlimit)/hist.GetBinWidth(1)
+        
+        print("Mean: %.2f" % rMean)
+        print("Sigma: %.2f" % rSigma)
+        print("RMS: %.2f" % rRMS)
+        print("Spot Number: %.2f" % spotNumber)
+        
+    hist.Draw('hist same')
     
     ROOT.gPad.Update()
     #h.GetXaxis().SetRangeUser(0,0.25)
@@ -613,10 +897,199 @@ def plotHistFit(plotdir,var='integral',i=0):
     #'Position %d' % (pos[i])
     c.SetGrid()
     c.Draw()
-    c.SaveAs("{plotdir}/hist_{var}_pos{pos}_60-40.pdf".format(plotdir=plotdir,var=var,pos=pos[i]))
+    c.SaveAs("{plotdir}/hist_{var}_pos{pos}_{gg}_{func}.pdf".format(plotdir=plotdir, var=var, pos=pos[i], gg=gg, func=func))
     hist.Reset()
     
-    return rMean,rSigma,dist[i],leg
+    return rMean,rSigma,dist[i],leg,spotNumber
+
+def posParametersCutInt(pos,gas):
+    
+    if gas == 60:
+        if pos == 0:
+            left  = 1000
+            right = 2400
+
+        elif pos == 1:
+            left  = 1600
+            right = 3200
+
+        elif pos == 2:
+            left = 2000
+            right = 3400
+
+        elif pos == 3:
+            left = 2400
+            right = 3600
+
+        elif pos == 4:
+            left = 2400
+            right = 3800
+
+        elif pos == 5:
+            left = 2400
+            right = 4000
+
+        else:
+            exit()
+    else:
+        if pos == 0:
+            left = 900
+            right = 2300
+
+        elif pos == 1:
+            left = 1200
+            right = 2700
+
+        elif pos == 2:
+            left = 1600
+            right = 2900
+
+        elif pos == 3:
+            left = 1600
+            right = 3100
+
+        elif pos == 4:
+            left = 1800
+            right = 3200
+
+        elif pos == 5:
+            left = 1900
+            right = 3300
+
+        elif pos == 6:
+            left = 2000
+            right = 3300
+    
+    return left, right
+
+
+def posParametersInt(pos,gas):
+    peak = 0
+    
+    if gas == 60:
+        if pos == 0:
+            left  = 800
+            right = 4000
+            peak  = 1000
+
+        elif pos == 1:
+            left  = 1000
+            right = 4200
+            peak  = 1200
+
+        elif pos == 2:
+            left = 1600
+            right = 4200
+            peak  = 1500
+
+        elif pos == 3:
+            left = 1000
+            right = 6000
+            peak  = 2200
+
+        elif pos == 4:
+            left = 500
+            right = 6000
+            peak  = 2300
+
+        elif pos == 5:
+            left = 500
+            right = 6000
+            peak  = 2400
+
+        else:
+            exit()
+    else:
+        if pos == 0:
+            left = 800
+            right = 3000
+
+        elif pos == 1:
+            left = 1200
+            right = 3400
+
+        elif pos == 2:
+            left = 1000#1500
+            right = 4000#3500
+
+        elif pos == 3:
+            left = 1600
+            right = 4000
+
+        elif pos == 4:
+            left = 1600
+            right = 4000
+
+        elif pos == 5:
+            left = 1700
+            right = 4000
+
+        elif pos == 6:
+            left = 1900
+            right = 4300
+    
+    return left, right, peak
+
+def posParametersLen(pos,gas):
+    
+    if gas == 60:
+        if pos == 0:
+            left = 2
+            right = 4
+
+        elif pos == 1:
+            left = 3
+            right = 5
+
+        elif pos == 2:
+            left = 3
+            right = 5
+
+        elif pos == 3:
+            left = 3
+            right = 5
+            
+        elif pos == 4:
+            left = 3.5
+            right = 5.5
+
+        elif pos == 5:
+            left = 3.5
+            right = 5.5
+
+        else:
+            exit()
+    else:
+        if pos == 0:
+            left = 2
+            right = 4
+
+        elif pos == 1:
+            left = 2.5
+            right = 4.5
+
+        elif pos == 2:
+            left = 3
+            right = 5
+
+        elif pos == 3:
+            left = 3
+            right = 5
+            
+        elif pos == 4:
+            left = 3.5
+            right = 5.5
+
+        elif pos == 5:
+            left = 3.5
+            right = 6
+
+        elif pos == 6:
+            left = 3.5
+            right = 6
+    
+    return left,right
+    
 
 def plotHist2D(plotdir,v1='integral',v2='slimness',i=0):
     import numpy as np
@@ -660,8 +1133,9 @@ def plotHist2D(plotdir,v1='integral',v2='slimness',i=0):
     tree.Draw("{var}>>hist".format(var=var1),cut)
     hist.SetFillStyle(3005)
     
+    #hist.Draw('hist sames') 
     ROOT.gPad.Update()
-    #h.GetXaxis().SetRangeUser(0,0.25)
+    #hist.GetYaxis().SetRangeUser(0,10000)
     hist.GetYaxis().SetTitle('{leg}'.format(leg=legy))
     hist.GetXaxis().SetTitle('{leg}'.format(leg=legx))
     c.SetGrid()
@@ -678,6 +1152,7 @@ if __name__ == "__main__":
     parser.add_option('', '--var' , type='string'       , default='integral'      , help='variable to plot the histogram')
     parser.add_option('', '--pos' , type='int'       , default=0      , help='position of the iron source')
     parser.add_option('', '--var2' , type='string'       , default='slimness'      , help='variable2 to plot the histogram 2D')
+    parser.add_option('', '--gas' , type='int'       , default='60'      , help='gas mixture 60 or 70')
    
     (options, args) = parser.parse_args()
 
@@ -698,16 +1173,22 @@ if __name__ == "__main__":
         plotEnergyVsDistance(options.outdir)
 
     if options.make in ['all','pmtvsz']:
-        plotPMTEnergyVsPosition(options.outdir)
+        plotPMTEnergyVsPosition(options.outdir,options.gas)
+    
+    if options.make in ['all','pmt2gas']:
+        plotPMT2gas(options.outdir)
 
     if options.make in ['all','cluvspmt']:
         plotCameraPMTCorr(options.outdir)
         
     if options.make in ['all','cluvsz']:
-        plotCameraEnergyVsPosition(options.outdir, options.var)
+        plotCameraEnergyVsPosition(options.outdir, options.var, options.gas)
     
     if options.make in ['all','hist1d']:        
-        plotHistFit(options.outdir, options.var, options.pos)
+        plotHistFit(options.outdir, options.var, options.pos, options.gas)
         
     if options.make in ['all','hist2d']:
         plotHist2D(options.outdir, options.var, options.var2, options.pos)
+    
+    if options.make in ['all','gascomp']:
+        plotCameraEnergyVsPositionGas(options.outdir, options.var)
