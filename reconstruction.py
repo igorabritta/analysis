@@ -249,6 +249,7 @@ if __name__ == '__main__':
     
     parser = OptionParser(usage='%prog h5file1,...,h5fileN [opts] ')
     parser.add_option('-r', '--run', dest='run', default='00000', type='string', help='run number with 5 characteres')
+    parser.add_option('-p', '--ped', dest='pedrun', default='00000', type='string', help='run number with 5 characteres')
     parser.add_option('-j', '--jobs', dest='jobs', default=1, type='int', help='Jobs to be run in parallel')
     parser.add_option(      '--max-entries', dest='maxEntries', default=-1, type='float', help='Process only the first n entries')
     parser.add_option(      '--pdir', dest='plotDir', default='./', type='string', help='Directory where to put the plots')
@@ -265,7 +266,7 @@ if __name__ == '__main__':
         if options.ev: options.maxEntries = options.ev + 1
         #if options.daq == 'midas': options.ev +=0.5 
     else:
-        setattr(options,'outFile','reco_run%05d_%s.root' % (int(options.run), options.tip))
+        setattr(options,'outFile','new_reco_run%05d_%s.root' % (int(options.run), options.tip))
     setattr(options,'pedfile_name', 'pedestals/pedestals/pedmap_run%s_rebin%d.root' % (options.pedrun,options.rebin))
     setattr(options,'pedfile_fullres_name', 'pedestals/pedmap_run%s_rebin1.root' % (options.pedrun))
     
