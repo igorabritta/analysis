@@ -116,7 +116,7 @@ class SnakesFactory:
             X1 = np.array(Xl).copy()                    # variable to keep the 2D coordinates
             for ix,iy in points:                        # Looping over the non-empty coordinates
                 nreplicas = int(self.image[ix,iy])-1
-                for count in range(nreplicas):                                # Looping over the number of 'photons' in that coordinate
+                for count in range(nreplicas):                      # Looping over the number of 'photons' in that coordinate
                     Xl.append((ix,iy))                              # add a coordinate repeatedly 
             X = np.array(Xl)                                        # Convert the list to an array
         else:
@@ -134,8 +134,21 @@ class SnakesFactory:
         if len(X)==0:
             return clusters,allSuperClusters
         
+        
+        ## REMOVE AS SOON AS POSSIBLE
         # - - - - - - - - - - - - - -
-        db = iDBSCAN(iterative = iterative, vector_eps = vector_eps, vector_min_samples = vector_min_samples, cuts = cuts, flag_plot_noise = self.options.flag_plot_noise).fit(X)
+        algo1 = 1
+        
+        if algo1 == 0:
+        
+            db = iDBSCAN(iterative = iterative, vector_eps = vector_eps, vector_min_samples = vector_min_samples, cuts = cuts, flag_plot_noise = self.options.flag_plot_noise).fit(X)
+            
+        else:
+            from NNC import NNC
+            db = NNC(rescale = rescale).fit(X)
+            #np.save("teste.npy",X)
+        # - - - - - - - - - - - - - -
+        
         
         if self.options.debug_mode == 1 and self.options.flag_plot_noise == 1:         
             for ext in ['png','pdf']:
@@ -146,14 +159,14 @@ class SnakesFactory:
         # Returning to '2' dimensions
         if tip == '3D':
             db.labels_              = db.labels_[range(0,lp)]               # Returning theses variables to the length
-            db.tag_                 = db.tag_[range(0,lp)]                  # of the 'real' edges, to exclude the fake repetitions.
+            db.tag_                 = db.tag_[range(0,lp)]                  # of the 'real' edges, to exclude the 'fake' repetitions.
         # - - - - - - - - - - - - - -
         
         labels = db.labels_
         
         # Number of clusters in labels, ignoring noise if present.
         n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
-
+        
         ##################### plot
         # the following is to preserve the square aspect ratio with all the camera pixels
         # plt.axes().set_aspect('equal','box')
@@ -272,12 +285,12 @@ class SnakesFactory:
                 print('[Plotting 1st iteration]')
                 u,indices = np.unique(db.labels_,return_index = True)
                 clu = [X1[db.labels_ == i] for i in u[list(np.where(db.tag_[indices] == 1)[0])].tolist()]
-
+                
                 fig = plt.figure(figsize=(self.options.figsizeX, self.options.figsizeY))
                 plt.imshow(rebin_image,cmap=self.options.cmapcolor,vmin=vmin, vmax=vmax,origin='lower' )
                 plt.title("Clusters found in iteration 1")
 
-                for j in range(0,np.shape(clu)[0]):
+                for j in range(1,np.shape(clu)[0]):
 
                     ybox = clu[j][:,0]
                     xbox = clu[j][:,1]
@@ -287,9 +300,9 @@ class SnakesFactory:
                         for n, contour in enumerate(contours):
                             plt.plot(contour[:, 1],contour[:, 0], '-r',linewidth=2.5)
 
-                if len(superclusters[0]):
-                       supercluster_contour = plt.contour(superclusterContours[0], [0.5], colors='firebrick', linewidths=4)
-                       supercluster_contour.collections[0].set_label('supercluster it 1')
+                #if len(superclusters[0]):
+                #       supercluster_contour = plt.contour(superclusterContours[0], [0.5], colors='firebrick', linewidths=4)
+                #       supercluster_contour.collections[0].set_label('supercluster it 1')
                 
                 for ext in ['png','pdf']:
                     plt.savefig('{pdir}/{name}_{esp}_{tip}.{ext}'.format(pdir=outname, name=self.name, esp='1st', ext=ext, tip=self.options.tip), bbox_inches='tight', pad_inches=0)
