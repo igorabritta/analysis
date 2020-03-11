@@ -167,7 +167,7 @@ class analysis:
         print("Reconstructing event range: ",evrange[1],"-",evrange[2])
         # loop over events (pictures)
         for iobj,key in enumerate(tf.GetListOfKeys()) :
-            iev = iobj if self.options.daq != 'midas'  else iobj/2 # when PMT is present
+            iev = iobj if self.options.daq != 'midas'  else int(iobj/2) # when PMT is present
             #print("max entries = ",self.options.maxEntries)
             if self.options.maxEntries>0 and iev==max(evrange[0],0)+self.options.maxEntries: break
             if sum(evrange[1:])>-2:
@@ -237,7 +237,8 @@ class analysis:
                     self.autotree.fillPMTVariables(peaksfinder,0.2*pkprod_params['resample'])
                 
             # fill reco tree (just once/event, and the TGraph is analyses as last)
-            self.outTree.fill()
+            if (self.options.daq == 'midas' and obj.InheritsFrom('TGraph')) or self.options.daq != 'midas':
+                self.outTree.fill()
 
         ROOT.gErrorIgnoreLevel = savErrorLevel
 
