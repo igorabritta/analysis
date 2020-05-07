@@ -18,7 +18,7 @@ utilities = utilities.utils()
 class analysis:
 
     def __init__(self,options):
-        self.xmax = 2048
+        self.xmax = options.pixels
         self.rebin = options.rebin        
         self.options = options
         self.pedfile_fullres_name = options.pedfile_fullres_name
@@ -282,7 +282,8 @@ if __name__ == '__main__':
     if options.justPedestal:
         ana = analysis(options)
         print("Pedestals done. Exiting.")
-        sw.swift_rm_root_file(options.tmpname)
+        if options.donotremove == False:
+            sw.swift_rm_root_file(options.tmpname)
         sys.exit(0)     
     
     ana = analysis(options)

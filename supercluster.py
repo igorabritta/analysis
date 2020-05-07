@@ -87,7 +87,7 @@ class SuperClusterAlgorithm:
             superClusterWithPixels = self.supercluster_points(superClusterContours)
           
             # get a cluster object
-            rebin = int(2048/self.shape)
+            rebin = int(self.options.pixels/self.shape)
             for i,scpixels in enumerate(superClusterWithPixels):
                 sclu = Cluster(scpixels,rebin,raw_data_fullreso,raw_data_fullreso_zs,debug=False)
                 sclu.iteration=iteration

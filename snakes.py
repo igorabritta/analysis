@@ -99,7 +99,7 @@ class SnakesFactory:
         nb_it              = 3
         
         #-----Pre-Processing----------------#
-        rescale=int(2048/self.rebin)
+        rescale=int(self.options.pixels/self.rebin)
         rebin_image     = tl.rebin(self.img_ori, (rescale, rescale))
 
         edges = median_filter(self.image, size=4)

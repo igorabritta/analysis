@@ -28,6 +28,7 @@
 
 'numPedEvents'          : -1,
 'pedExclRegion'         : None,
+'pixels'                : 2048,
 'rebin'                 : 4,
 'nsigma'                : 1.3,
 'cimax'                 : 200,                     # Upper threshold
